@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Pointo</title>
+<meta name="theme-color" content="#F2F2F7">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pointo">
+<style>
+:root{
+  --bg:#F2F2F7; --card:#FFFFFF; --card-border:rgba(0,0,0,0.06);
+  --text:#1C1C1E; --text-dim:#6E6E73; --text-faint:#AEAEB2;
+  --accent:#0A84FF; --accent-soft:rgba(10,132,255,0.12);
+  --green:#30D158; --green-soft:rgba(48,209,88,0.14);
+  --red:#FF453A; --red-soft:rgba(255,69,58,0.12);
+  --orange:#FF9F0A; --orange-soft:rgba(255,159,10,0.14);
+  --purple:#BF5AF2; --purple-soft:rgba(191,90,242,0.14);
+  --sep:rgba(60,60,67,0.15);
+  --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
+  --radius:18px; --radius-sm:12px;
+  --sheen: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0));
+}
+:root[data-theme="dark"]{
+  --bg:#000000; --card:#111114; --card-border:rgba(255,255,255,0.08);
+  --text:#F2F2F7; --text-dim:#98989D; --text-faint:#636366;
+  --accent:#409CFF; --accent-soft:rgba(64,156,255,0.16);
+  --green:#32D74B; --green-soft:rgba(50,215,75,0.16);
+  --red:#FF6961; --red-soft:rgba(255,105,97,0.16);
+  --orange:#FFB340; --orange-soft:rgba(255,179,64,0.16);
+  --purple:#DA8FFF; --purple-soft:rgba(218,143,255,0.16);
+  --sep:rgba(255,255,255,0.08);
+  --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 10px 30px rgba(0,0,0,0.5);
+  --sheen: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0));
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
+  background:var(--bg); color:var(--text);
+  transition:background .3s ease, color .3s ease;
+  overscroll-behavior-y:none;
+}
+:root[data-theme="dark"] body{
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(64,120,255,0.16), transparent 60%),
+    #000000;
+}
+.app{max-width:520px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; padding-bottom:calc(76px + env(safe-area-inset-bottom));}
+header.top{
+  padding:calc(14px + env(safe-area-inset-top)) 20px 10px; position:sticky; top:0; z-index:20;
+  background:color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+}
+header.top h1{font-size:28px; font-weight:700; margin:0; letter-spacing:-0.02em;}
+header.top .sub{color:var(--text-dim); font-size:13px; margin-top:2px;}
+main{flex:1; padding:8px 16px 24px;}
+.view{display:none; animation:fadein .25s ease;}
+.view.active{display:block;}
+@keyframes fadein{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+.card{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius);
+  padding:18px; margin-bottom:14px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+}
+.card::before{content:""; position:absolute; top:0; left:0; right:0; height:1px; background:var(--sheen);}
+.card h2{font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); margin:0 0 12px; font-weight:600;}
+
+.hero{
+  background:linear-gradient(160deg, var(--accent-soft), transparent 70%);
+  text-align:center; padding:26px 18px 22px;
+}
+.hero .label{font-size:13px; color:var(--text-dim); font-weight:500;}
+.hero .time{font-size:52px; font-weight:700; letter-spacing:-0.03em; margin:6px 0 2px; font-variant-numeric:tabular-nums;}
+.hero .delta{font-size:14px; font-weight:600; padding:4px 10px; border-radius:20px; display:inline-block;}
+.delta.pos{color:var(--green); background:var(--green-soft);}
+.delta.neg{color:var(--red); background:var(--red-soft);}
+.delta.neutral{color:var(--text-dim); background:rgba(120,120,128,0.12);}
+
+.field-row{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--sep);}
+.field-row:last-child{border-bottom:none;}
+.field-row label{font-size:15px; font-weight:500;}
+.field-row .hint{display:block; font-size:12px; color:var(--text-faint); font-weight:400; margin-top:1px;}
+.input-group{display:flex; align-items:center; gap:8px;}
+input[type="time"], input[type="number"], input[type="text"]{
+  font-family:inherit; font-size:16px; font-variant-numeric:tabular-nums; font-weight:600;
+  background:rgba(120,120,128,0.12); border:none; border-radius:10px; padding:8px 10px;
+  color:var(--text); width:104px; text-align:center;
+}
+:root[data-theme="dark"] input{background:rgba(120,120,128,0.24);}
+input[type="text"]{width:150px; text-align:left; font-weight:500;}
+.btn-now{
+  border:none; background:var(--accent-soft); color:var(--accent); font-size:12px; font-weight:600;
+  padding:8px 10px; border-radius:10px;
+}
+.btn-now:active{opacity:.6;}
+.alert{margin-top:10px; padding:10px 12px; border-radius:10px; font-size:13px; font-weight:500; background:var(--orange-soft); color:var(--orange);}
+
+.toggle{position:relative; width:51px; height:31px; border-radius:16px; background:rgba(120,120,128,0.3); border:none; flex-shrink:0;}
+.toggle::after{content:""; position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.2); transition:transform .2s ease;}
+.toggle.on{background:var(--green);}
+.toggle.on::after{transform:translateX(20px);}
+
+.segmented{display:flex; background:rgba(120,120,128,0.12); border-radius:10px; padding:2px; gap:2px;}
+.segmented button{flex:1; border:none; background:transparent; padding:8px 6px; border-radius:8px; font-size:13px; font-weight:600; color:var(--text-dim);}
+.segmented button.active{background:var(--card); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.15);}
+
+/* Calendar */
+.cal-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+.cal-nav button{border:none; background:rgba(120,120,128,0.12); width:32px; height:32px; border-radius:10px; font-size:16px; color:var(--accent); font-weight:700;}
+.cal-nav .month-label{font-size:17px; font-weight:700;}
+.cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+.cal-grid .dow{text-align:center; font-size:11px; color:var(--text-faint); font-weight:600; padding-bottom:4px;}
+.cal-day{
+  aspect-ratio:1; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  font-size:14px; font-weight:600; position:relative; background:rgba(120,120,128,0.06); color:var(--text);
+}
+.cal-day.other{opacity:.25;}
+.cal-day.today{outline:2px solid var(--accent); outline-offset:-2px;}
+.cal-day .dot{width:5px; height:5px; border-radius:50%; margin-top:3px;}
+.cal-day.worked-pos{background:var(--green-soft);}
+.cal-day.worked-neg{background:var(--red-soft);}
+.legend{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
+.legend .chip{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-dim); background:rgba(120,120,128,0.1); padding:5px 9px; border-radius:20px;}
+.legend .chip .sw{width:8px; height:8px; border-radius:50%;}
+.month-summary{display:flex; gap:10px; margin-top:14px;}
+.month-summary .box{flex:1; background:rgba(120,120,128,0.08); border-radius:12px; padding:10px; text-align:center;}
+.month-summary .box .n{font-size:19px; font-weight:700; font-variant-numeric:tabular-nums;}
+.month-summary .box .l{font-size:11px; color:var(--text-dim); margin-top:1px;}
+
+/* Day sheet */
+.sheet-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:50; opacity:0; pointer-events:none; transition:opacity .25s ease;}
+.sheet-backdrop.show{opacity:1; pointer-events:all;}
+.sheet{
+  position:fixed; left:0; right:0; bottom:0; z-index:51; background:var(--card);
+  border-radius:22px 22px 0 0; padding:10px 20px calc(24px + env(safe-area-inset-bottom));
+  transform:translateY(100%); transition:transform .3s cubic-bezier(.32,.72,0,1); max-width:520px; margin:0 auto;
+  box-shadow:0 -10px 40px rgba(0,0,0,.25);
+}
+.sheet.show{transform:translateY(0);}
+.sheet .handle{width:36px; height:5px; border-radius:3px; background:var(--text-faint); margin:6px auto 14px; opacity:.5;}
+.sheet h3{margin:0 0 14px; font-size:17px;}
+.type-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;}
+.type-btn{border:2px solid transparent; background:rgba(120,120,128,0.1); border-radius:12px; padding:12px; font-size:14px; font-weight:600; color:var(--text); text-align:left;}
+.type-btn.selected{border-color:var(--accent); background:var(--accent-soft); color:var(--accent);}
+.type-btn.custom-add{border:2px dashed var(--text-faint); color:var(--text-dim); background:transparent;}
+
+button.primary{width:100%; border:none; background:var(--accent); color:#fff; font-size:16px; font-weight:600; padding:14px; border-radius:14px; margin-top:6px;}
+button.primary:active{opacity:.75;}
+button.secondary{width:100%; border:none; background:rgba(120,120,128,0.12); color:var(--text); font-size:15px; font-weight:600; padding:12px; border-radius:14px; margin-top:8px;}
+button.destructive{color:var(--red);}
+
+/* Tab bar */
+nav.tabbar{
+  position:fixed; bottom:0; left:0; right:0; z-index:30;
+  background:color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--sep);
+  padding:8px 6px calc(6px + env(safe-area-inset-bottom));
+  display:flex; max-width:520px; margin:0 auto;
+}
+nav.tabbar button{
+  flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px;
+  color:var(--text-faint); font-size:10.5px; font-weight:600; padding:4px 0;
+}
+nav.tabbar button svg{width:24px; height:24px; stroke:var(--text-faint); fill:none; stroke-width:1.8;}
+nav.tabbar button.active{color:var(--accent);}
+nav.tabbar button.active svg{stroke:var(--accent);}
+
+.balance-hero{text-align:center; padding:8px 0 4px;}
+.balance-hero .n{font-size:44px; font-weight:700; font-variant-numeric:tabular-nums;}
+.balance-hero .l{color:var(--text-dim); font-size:13px; margin-top:2px;}
+
+.settings-group{margin-bottom:6px;}
+.footer-note{text-align:center; color:var(--text-faint); font-size:11px; margin:18px 0 4px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1 id="headerTitle">Pointo</h1>
+    <div class="sub" id="headerSub">Aujourd'hui</div>
+  </header>
+
+  <main>
+    <!-- JOURNÉE -->
+    <section class="view active" id="view-jour">
+      <div class="card hero">
+        <div class="label">Départ au plus tôt</div>
+        <div class="time" id="departTime">--:--</div>
+        <div class="delta neutral" id="departDelta">Renseigne ton arrivée</div>
+      </div>
+
+      <div class="card">
+        <h2>Arrivée</h2>
+        <div class="field-row">
+          <label for="arrivalTime">Heure d'arrivée</label>
+          <div class="input-group">
+            <input type="time" id="arrivalTime">
+            <button class="btn-now" data-target="arrivalTime">Maintenant</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Pause déjeuner</h2>
+        <div class="field-row">
+          <label for="breakStart">Départ pause<span class="hint">Optionnel</span></label>
+          <div class="input-group">
+            <input type="time" id="breakStart">
+            <button class="btn-now" data-target="breakStart">Maintenant</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <label for="breakEnd">Retour de pause<span class="hint">Optionnel</span></label>
+          <div class="input-group">
+            <input type="time" id="breakEnd">
+            <button class="btn-now" data-target="breakEnd">Maintenant</button>
+          </div>
+        </div>
+        <div class="alert" id="breakAlert" style="display:none;"></div>
+      </div>
+
+      <button class="primary" id="saveDayBtn">Enregistrer la journée</button>
+    </section>
+
+    <!-- CALENDRIER -->
+    <section class="view" id="view-cal">
+      <div class="card">
+        <div class="cal-nav">
+          <button id="calPrev">‹</button>
+          <div class="month-label" id="calMonthLabel">—</div>
+          <button id="calNext">›</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="legend" id="calLegend"></div>
+        <div class="month-summary" id="calSummary"></div>
+      </div>
+    </section>
+
+    <!-- HEURES SUPP -->
+    <section class="view" id="view-supp">
+      <div class="card">
+        <h2>Solde cumulé</h2>
+        <div class="balance-hero">
+          <div class="n" id="balanceValue">+0h00</div>
+          <div class="l">Heures supplémentaires</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Ce mois-ci</h2>
+        <div class="field-row">
+          <label>Écart du mois en cours</label>
+          <div id="monthDelta" style="font-weight:700; font-variant-numeric:tabular-nums;">+0h00</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Ajuster le solde</h2>
+        <div class="field-row">
+          <label for="balanceAdjust">Nouveau solde de départ</label>
+          <input type="text" id="balanceAdjust" placeholder="+3h30 ou -1h15">
+        </div>
+        <button class="secondary" id="applyBalanceBtn">Appliquer</button>
+      </div>
+    </section>
+
+    <!-- RÉGLAGES -->
+    <section class="view" id="view-settings">
+      <div class="card">
+        <h2>Apparence</h2>
+        <div class="field-row">
+          <label>Thème sombre</label>
+          <button class="toggle" id="themeToggle"></button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Temps de travail</h2>
+        <div class="field-row">
+          <label for="dailyDuration">Durée quotidienne<span class="hint">Heures:minutes</span></label>
+          <div class="input-group">
+            <input type="number" id="dailyDurH" min="0" max="12" style="width:56px;">h
+            <input type="number" id="dailyDurM" min="0" max="59" style="width:56px;">m
+          </div>
+        </div>
+        <div class="field-row">
+          <label for="defaultBreak">Pause par défaut</label>
+          <input type="number" id="defaultBreak" min="0" max="180" style="width:70px;">
+        </div>
+        <div class="field-row">
+          <label for="minBreak">Pause minimum</label>
+          <input type="number" id="minBreak" min="0" max="180" style="width:70px;">
+        </div>
+        <div class="field-row">
+          <label for="defaultArrival">Arrivée par défaut</label>
+          <input type="time" id="defaultArrival">
+        </div>
+      </div>
+      <div class="card">
+        <h2>Données</h2>
+        <button class="secondary destructive" id="resetBtn">Réinitialiser toutes les données</button>
+      </div>
+      <div class="footer-note">Pointo · fonctionne hors-ligne · tes données restent sur ton appareil</div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab-btn active" data-view="jour">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      Journée
+    </button>
+    <button class="tab-btn" data-view="cal">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      Calendrier
+    </button>
+    <button class="tab-btn" data-view="supp">
+      <svg viewBox="0 0 24 24"><path d="M12 3v18M5 9l7-6 7 6"/></svg>
+      Heures supp
+    </button>
+    <button class="tab-btn" data-view="settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1.04 1.56V21a2 2 0 11-4 0v-.09A1.7 1.7 0 008.96 19.6a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-1.56-1.04H3a2 2 0 010-4h.09A1.7 1.7 0 004.6 9a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 009 4.6a1.7 1.7 0 001.04-1.56V3a2 2 0 014 0v.09A1.7 1.7 0 0015 4.6a1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019 9a1.7 1.7 0 001.56 1.04H21a2 2 0 010 4h-.09A1.7 1.7 0 0019.4 15z"/></svg>
+      Réglages
+    </button>
+  </nav>
+</div>
+
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="daySheet">
+  <div class="handle"></div>
+  <h3 id="sheetDate">—</h3>
+  <div class="type-grid" id="typeGrid"></div>
+  <button class="secondary" id="clearDayBtn">Retirer le marquage</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const LS_KEY = "pointo.v3";
+  const $ = (id) => document.getElementById(id);
+
+  const DEFAULT_TYPES = [
+    {id:"conge", label:"Congé", color:"var(--purple)"},
+    {id:"rtt", label:"RTT", color:"var(--orange)"},
+    {id:"ferie", label:"Férié", color:"var(--red)"}
+  ];
+
+  function defaultState(){
+    return {
+      theme:"light",
+      settings:{ dailyMinutes:432, defaultBreak:40, minBreak:35, defaultArrival:"08:30" },
+      balanceBaseMinutes:0,
+      customTypes:[],
+      days:{}, // "YYYY-MM-DD" -> {arrival, breakStart, breakEnd, type}
+      draft:{}
+    };
+  }
+
+  function migrate(raw){
+    if(!raw) return defaultState();
+    try{
+      const parsed = JSON.parse(raw);
+      if(parsed.days && parsed.settings) return Object.assign(defaultState(), parsed);
+      // old format migration (v1 history array)
+      const state = defaultState();
+      if(Array.isArray(parsed.history)){
+        parsed.history.forEach(h=>{
+          if(h.date) state.days[h.date] = {arrival:h.arrival||"", breakStart:h.breakStart||"", breakEnd:h.breakEnd||"", type:null};
+        });
+      }
+      return state;
+    }catch(e){ return defaultState(); }
+  }
+
+  let state = migrate(localStorage.getItem(LS_KEY));
+
+  function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function todayISO(d=new Date()){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+  function timeToMinutes(t){ if(!t) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }
+  function minutesToTime(m){ m=((m%1440)+1440)%1440; return `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
+  function minutesToHM(m, signed=false){
+    const sign = m<0 ? "-" : (signed ? "+" : "");
+    const abs = Math.abs(Math.round(m));
+    return `${sign}${Math.floor(abs/60)}h${pad(abs%60)}`;
+  }
+
+  const allTypes = () => DEFAULT_TYPES.concat(state.customTypes);
+
+  // ---------- Theme ----------
+  function applyTheme(){
+    document.documentElement.setAttribute("data-theme", state.theme);
+    $("themeToggle").classList.toggle("on", state.theme==="dark");
+  }
+  $("themeToggle").addEventListener("click", ()=>{
+    state.theme = state.theme==="dark" ? "light" : "dark";
+    applyTheme(); save();
+  });
+
+  // ---------- Tabs ----------
+  document.querySelectorAll(".tab-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+      document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+      btn.classList.add("active");
+      $("view-"+btn.dataset.view).classList.add("active");
+      if(btn.dataset.view==="cal") renderCalendar();
+      if(btn.dataset.view==="supp") renderBalance();
+      if(btn.dataset.view==="settings") renderSettings();
+    });
+  });
+
+  // ---------- Journée ----------
+  const dur = () => state.settings.dailyMinutes;
+
+  function computeDeparture(){
+    const arrival = timeToMinutes($("arrivalTime").value);
+    if(arrival==null){
+      $("departTime").textContent = "--:--";
+      $("departDelta").textContent = "Renseigne ton arrivée";
+      $("departDelta").className = "delta neutral";
+      $("breakAlert").style.display="none";
+      return;
+    }
+    const bs = timeToMinutes($("breakStart").value);
+    const be = timeToMinutes($("breakEnd").value);
+    let breakMin = state.settings.defaultBreak;
+    let usingCustomBreak = false;
+    if(bs!=null && be!=null && be>bs){
+      breakMin = be-bs;
+      usingCustomBreak = true;
+    }
+    if(usingCustomBreak && breakMin < state.settings.minBreak){
+      $("breakAlert").style.display="block";
+      $("breakAlert").textContent = `Ta pause (${minutesToHM(breakMin)}) est sous le minimum de ${minutesToHM(state.settings.minBreak)}.`;
+    } else {
+      $("breakAlert").style.display="none";
+    }
+    const departure = arrival + dur() + breakMin;
+    $("departTime").textContent = minutesToTime(departure);
+    const now = new Date();
+    const nowMin = now.getHours()*60+now.getMinutes();
+    const diff = departure - nowMin;
+    if(diff>0){
+      $("departDelta").textContent = `Dans ${minutesToHM(diff)}`;
+      $("departDelta").className = "delta neutral";
+    } else {
+      $("departDelta").textContent = `Dépassé de ${minutesToHM(-diff)}`;
+      $("departDelta").className = "delta pos";
+    }
+  }
+
+  ["arrivalTime","breakStart","breakEnd"].forEach(id=>{
+    $(id).addEventListener("input", ()=>{ computeDeparture(); saveDraft(); });
+  });
+
+  document.querySelectorAll(".btn-now").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const now = new Date();
+      $(btn.dataset.target).value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      computeDeparture(); saveDraft();
+    });
+  });
+
+  function saveDraft(){
+    const iso = todayISO();
+    state.draft = { date:iso, arrival:$("arrivalTime").value, breakStart:$("breakStart").value, breakEnd:$("breakEnd").value };
+    save();
+  }
+
+  function restoreDraft(){
+    const iso = todayISO();
+    if(state.draft && state.draft.date===iso){
+      $("arrivalTime").value = state.draft.arrival||"";
+      $("breakStart").value = state.draft.breakStart||"";
+      $("breakEnd").value = state.draft.breakEnd||"";
+    } else if(state.days[iso]){
+      const d = state.days[iso];
+      $("arrivalTime").value = d.arrival||"";
+      $("breakStart").value = d.breakStart||"";
+      $("breakEnd").value = d.breakEnd||"";
+    } else {
+      $("arrivalTime").value = state.settings.defaultArrival||"";
+    }
+    computeDeparture();
+  }
+
+  $("saveDayBtn").addEventListener("click", ()=>{
+    const iso = todayISO();
+    state.days[iso] = {
+      arrival:$("arrivalTime").value, breakStart:$("breakStart").value, breakEnd:$("breakEnd").value,
+      type: state.days[iso] ? state.days[iso].type : null
+    };
+    state.draft = {};
+    save();
+    $("saveDayBtn").textContent = "Enregistré ✓";
+    setTimeout(()=>{ $("saveDayBtn").textContent = "Enregistrer la journée"; }, 1400);
+    renderBalance();
+  });
+
+  // ---------- Calendrier ----------
+  let calCursor = new Date(); calCursor.setDate(1);
+  const DOW = ["L","M","M","J","V","S","D"];
+  const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+
+  function dayDeltaMinutes(d){
+    if(!d || !d.arrival) return null;
+    const arrival = timeToMinutes(d.arrival);
+    const bs = timeToMinutes(d.breakStart), be = timeToMinutes(d.breakEnd);
+    let breakMin = state.settings.defaultBreak;
+    if(bs!=null && be!=null && be>bs) breakMin = be-bs;
+    // if only arrival+departure known we assume worked = dailyMinutes exactly unless explicit break diff differs from default
+    // We don't store explicit departure; assume standard day length adjusted by break diff vs default
+    const workedMinutes = dur() + (breakMin - state.settings.defaultBreak) * 0; // arrival/pause don't change worked duration model-side
+    return workedMinutes; // placeholder, see below for real balance calc
+  }
+
+  function renderCalendar(){
+    const y = calCursor.getFullYear(), m = calCursor.getMonth();
+    $("calMonthLabel").textContent = `${MONTHS[m]} ${y}`;
+    const grid = $("calGrid");
+    grid.innerHTML = "";
+    DOW.forEach(d=>{
+      const el = document.createElement("div"); el.className="dow"; el.textContent=d; grid.appendChild(el);
+    });
+    const firstDow = (new Date(y,m,1).getDay()+6)%7; // Monday=0
+    const daysInMonth = new Date(y,m+1,0).getDate();
+    const daysInPrev = new Date(y,m,0).getDate();
+    const todayStr = todayISO();
+
+    let workedDays=0, absenceDays=0, cumDeltaMin=0;
+
+    for(let i=0;i<firstDow;i++){
+      const dnum = daysInPrev - firstDow + 1 + i;
+      const cell = document.createElement("div"); cell.className="cal-day other"; cell.textContent=dnum;
+      grid.appendChild(cell);
+    }
+    for(let day=1; day<=daysInMonth; day++){
+      const iso = `${y}-${pad(m+1)}-${pad(day)}`;
+      const rec = state.days[iso];
+      const cell = document.createElement("div");
+      cell.className = "cal-day";
+      if(iso===todayStr) cell.classList.add("today");
+      cell.innerHTML = `<span>${day}</span>`;
+      if(rec && rec.type){
+        const t = allTypes().find(t=>t.id===rec.type);
+        absenceDays++;
+        const dot = document.createElement("div"); dot.className="dot";
+        dot.style.background = t ? t.color : "var(--text-dim)";
+        cell.appendChild(dot);
+        cell.style.background = "color-mix(in srgb, " + (t?t.color:"gray") + " 16%, transparent)";
+      } else if(rec && rec.arrival){
+        workedDays++;
+        const bs = timeToMinutes(rec.breakStart), be = timeToMinutes(rec.breakEnd);
+        let breakMin = state.settings.defaultBreak;
+        if(bs!=null && be!=null && be>bs) breakMin = be-bs;
+        const deltaVsDefault = state.settings.defaultBreak - breakMin; // shorter break = more worked... simplistic proxy
+        cumDeltaMin += deltaVsDefault;
+        cell.classList.add(deltaVsDefault>=0 ? "worked-pos":"worked-neg");
+        const dot = document.createElement("div"); dot.className="dot";
+        dot.style.background = deltaVsDefault>=0 ? "var(--green)" : "var(--red)";
+        cell.appendChild(dot);
+      }
+      cell.addEventListener("click", ()=>openDaySheet(iso));
+      grid.appendChild(cell);
+    }
+
+    // legend
+    const legend = $("calLegend");
+    legend.innerHTML = "";
+    const legendItems = [
+      {color:"var(--green)", label:"Jour travaillé"},
+      ...allTypes().map(t=>({color:t.color, label:t.label}))
+    ];
+    legendItems.forEach(it=>{
+      const chip = document.createElement("div"); chip.className="chip";
+      chip.innerHTML = `<span class="sw" style="background:${it.color}"></span>${it.label}`;
+      legend.appendChild(chip);
+    });
+
+    $("calSummary").innerHTML = `
+      <div class="box"><div class="n">${workedDays}</div><div class="l">Jours travaillés</div></div>
+      <div class="box"><div class="n">${minutesToHM(cumDeltaMin,true)}</div><div class="l">Écart cumulé</div></div>
+      <div class="box"><div class="n">${absenceDays}</div><div class="l">Absences</div></div>
+    `;
+  }
+
+  $("calPrev").addEventListener("click", ()=>{ calCursor.setMonth(calCursor.getMonth()-1); renderCalendar(); });
+  $("calNext").addEventListener("click", ()=>{ calCursor.setMonth(calCursor.getMonth()+1); renderCalendar(); });
+
+  // ---------- Day sheet ----------
+  let sheetDateISO = null;
+  function openDaySheet(iso){
+    sheetDateISO = iso;
+    const [y,m,d] = iso.split("-").map(Number);
+    const dateObj = new Date(y, m-1, d);
+    $("sheetDate").textContent = dateObj.toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"});
+    const rec = state.days[iso];
+    const grid = $("typeGrid");
+    grid.innerHTML = "";
+    allTypes().forEach(t=>{
+      const btn = document.createElement("button");
+      btn.className = "type-btn" + (rec && rec.type===t.id ? " selected":"");
+      btn.textContent = t.label;
+      btn.addEventListener("click", ()=>{
+        state.days[iso] = Object.assign({arrival:"",breakStart:"",breakEnd:""}, state.days[iso], {type:t.id});
+        save(); closeDaySheet(); renderCalendar();
+      });
+      grid.appendChild(btn);
+    });
+    const addBtn = document.createElement("button");
+    addBtn.className = "type-btn custom-add";
+    addBtn.textContent = "＋ Autre…";
+    addBtn.addEventListener("click", ()=>{
+      const name = prompt("Nom du type d'absence :");
+      if(name && name.trim()){
+        const id = "custom_"+Date.now();
+        state.customTypes.push({id, label:name.trim(), color:"var(--accent)"});
+        state.days[iso] = Object.assign({arrival:"",breakStart:"",breakEnd:""}, state.days[iso], {type:id});
+        save(); closeDaySheet(); renderCalendar();
+      }
+    });
+    grid.appendChild(addBtn);
+    $("sheetBackdrop").classList.add("show");
+    $("daySheet").classList.add("show");
+  }
+  function closeDaySheet(){
+    $("sheetBackdrop").classList.remove("show");
+    $("daySheet").classList.remove("show");
+  }
+  $("sheetBackdrop").addEventListener("click", closeDaySheet);
+  $("clearDayBtn").addEventListener("click", ()=>{
+    if(sheetDateISO && state.days[sheetDateISO]){
+      state.days[sheetDateISO].type = null;
+      save();
+    }
+    closeDaySheet(); renderCalendar();
+  });
+
+  // ---------- Heures supp ----------
+  function renderBalance(){
+    let total = state.balanceBaseMinutes;
+    let monthTotal = 0;
+    const now = new Date();
+    Object.keys(state.days).forEach(iso=>{
+      const rec = state.days[iso];
+      if(rec && rec.arrival && !rec.type){
+        const bs = timeToMinutes(rec.breakStart), be = timeToMinutes(rec.breakEnd);
+        let breakMin = state.settings.defaultBreak;
+        if(bs!=null && be!=null && be>bs) breakMin = be-bs;
+        const delta = state.settings.defaultBreak - breakMin;
+        total += delta;
+        const [y,m] = iso.split("-").map(Number);
+        if(y===now.getFullYear() && (m-1)===now.getMonth()) monthTotal += delta;
+      }
+    });
+    const balEl = $("balanceValue");
+    balEl.textContent = minutesToHM(total, true);
+    balEl.style.color = total>=0 ? "var(--green)" : "var(--red)";
+    const mEl = $("monthDelta");
+    mEl.textContent = minutesToHM(monthTotal, true);
+    mEl.style.color = monthTotal>=0 ? "var(--green)" : "var(--red)";
+  }
+
+  $("applyBalanceBtn").addEventListener("click", ()=>{
+    const v = $("balanceAdjust").value.trim();
+    const match = v.match(/^([+-]?)(\d+)h(\d{0,2})$/i);
+    if(match){
+      const sign = match[1]==="-" ? -1 : 1;
+      const h = parseInt(match[2]||"0",10);
+      const mn = parseInt(match[3]||"0",10);
+      state.balanceBaseMinutes = sign*(h*60+mn);
+      save(); renderBalance();
+      $("balanceAdjust").value="";
+    } else {
+      alert("Format attendu : +3h30 ou -1h15");
+    }
+  });
+
+  // ---------- Réglages ----------
+  function renderSettings(){
+    $("dailyDurH").value = Math.floor(state.settings.dailyMinutes/60);
+    $("dailyDurM").value = state.settings.dailyMinutes%60;
+    $("defaultBreak").value = state.settings.defaultBreak;
+    $("minBreak").value = state.settings.minBreak;
+    $("defaultArrival").value = state.settings.defaultArrival;
+  }
+  ["dailyDurH","dailyDurM","defaultBreak","minBreak","defaultArrival"].forEach(id=>{
+    $(id).addEventListener("change", ()=>{
+      state.settings.dailyMinutes = (parseInt($("dailyDurH").value,10)||0)*60 + (parseInt($("dailyDurM").value,10)||0);
+      state.settings.defaultBreak = parseInt($("defaultBreak").value,10)||0;
+      state.settings.minBreak = parseInt($("minBreak").value,10)||0;
+      state.settings.defaultArrival = $("defaultArrival").value;
+      save(); computeDeparture(); renderBalance();
+    });
+  });
+
+  $("resetBtn").addEventListener("click", ()=>{
+    if(confirm("Supprimer toutes tes données Pointo ? Cette action est irréversible.")){
+      state = defaultState();
+      save();
+      applyTheme(); restoreDraft(); renderSettings(); renderCalendar(); renderBalance();
+    }
+  });
+
+  // ---------- Init ----------
+  applyTheme();
+  restoreDraft();
+  renderSettings();
+
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", ()=>{
+      navigator.serviceWorker.register("sw.js").catch(()=>{});
+    });
+  }
+})();
+</script>
+</body>
+</html>
