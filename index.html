@@ -224,6 +224,17 @@ nav.tabbar button.active svg{stroke:var(--accent);}
         <div class="alert" id="breakAlert" style="display:none;"></div>
       </div>
 
+      <div class="card">
+        <h2>Départ</h2>
+        <div class="field-row">
+          <label for="departureTime">Heure de départ réelle<span class="hint">Optionnel · pour calculer tes heures supp</span></label>
+          <div class="input-group">
+            <input type="time" id="departureTime">
+            <button class="btn-now" data-target="departureTime">Maintenant</button>
+          </div>
+        </div>
+      </div>
+
       <button class="primary" id="saveDayBtn">Enregistrer la journée</button>
     </section>
 
@@ -452,7 +463,7 @@ nav.tabbar button.active svg{stroke:var(--accent);}
     }
   }
 
-  ["arrivalTime","breakStart","breakEnd"].forEach(id=>{
+  ["arrivalTime","breakStart","breakEnd","departureTime"].forEach(id=>{
     $(id).addEventListener("input", ()=>{ computeDeparture(); saveDraft(); });
   });
 
@@ -466,7 +477,7 @@ nav.tabbar button.active svg{stroke:var(--accent);}
 
   function saveDraft(){
     const iso = todayISO();
-    state.draft = { date:iso, arrival:$("arrivalTime").value, breakStart:$("breakStart").value, breakEnd:$("breakEnd").value };
+    state.draft = { date:iso, arrival:$("arrivalTime").value, breakStart:$("breakStart").value, breakEnd:$("breakEnd").value, departure:$("departureTime").value };
     save();
   }
 
@@ -476,13 +487,16 @@ nav.tabbar button.active svg{stroke:var(--accent);}
       $("arrivalTime").value = state.draft.arrival||"";
       $("breakStart").value = state.draft.breakStart||"";
       $("breakEnd").value = state.draft.breakEnd||"";
+      $("departureTime").value = state.draft.departure||"";
     } else if(state.days[iso]){
       const d = state.days[iso];
       $("arrivalTime").value = d.arrival||"";
       $("breakStart").value = d.breakStart||"";
       $("breakEnd").value = d.breakEnd||"";
+      $("departureTime").value = d.departure||"";
     } else {
       $("arrivalTime").value = state.settings.defaultArrival||"";
+      $("departureTime").value = "";
     }
     computeDeparture();
   }
@@ -491,6 +505,7 @@ nav.tabbar button.active svg{stroke:var(--accent);}
     const iso = todayISO();
     state.days[iso] = {
       arrival:$("arrivalTime").value, breakStart:$("breakStart").value, breakEnd:$("breakEnd").value,
+      departure:$("departureTime").value,
       type: state.days[iso] ? state.days[iso].type : null
     };
     state.draft = {};
@@ -505,16 +520,22 @@ nav.tabbar button.active svg{stroke:var(--accent);}
   const DOW = ["L","M","M","J","V","S","D"];
   const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 
-  function dayDeltaMinutes(d){
-    if(!d || !d.arrival) return null;
-    const arrival = timeToMinutes(d.arrival);
-    const bs = timeToMinutes(d.breakStart), be = timeToMinutes(d.breakEnd);
+  // Écart (en minutes) entre le temps réellement travaillé et la durée quotidienne cible.
+  // Si l'heure de départ réelle est renseignée, on calcule le temps travaillé exact.
+  // Sinon (anciennes journées sans départ saisi), on retombe sur une approximation
+  // basée uniquement sur l'écart de pause par rapport à la pause par défaut.
+  function dayDeltaMinutes(rec){
+    if(!rec || !rec.arrival || rec.type) return null;
+    const arrival = timeToMinutes(rec.arrival);
+    const bs = timeToMinutes(rec.breakStart), be = timeToMinutes(rec.breakEnd);
     let breakMin = state.settings.defaultBreak;
     if(bs!=null && be!=null && be>bs) breakMin = be-bs;
-    // if only arrival+departure known we assume worked = dailyMinutes exactly unless explicit break diff differs from default
-    // We don't store explicit departure; assume standard day length adjusted by break diff vs default
-    const workedMinutes = dur() + (breakMin - state.settings.defaultBreak) * 0; // arrival/pause don't change worked duration model-side
-    return workedMinutes; // placeholder, see below for real balance calc
+    const departure = timeToMinutes(rec.departure);
+    if(departure!=null && departure>arrival){
+      const workedMinutes = (departure - arrival) - breakMin;
+      return workedMinutes - dur();
+    }
+    return state.settings.defaultBreak - breakMin;
   }
 
   function renderCalendar(){
@@ -553,14 +574,11 @@ nav.tabbar button.active svg{stroke:var(--accent);}
         cell.style.background = "color-mix(in srgb, " + (t?t.color:"gray") + " 16%, transparent)";
       } else if(rec && rec.arrival){
         workedDays++;
-        const bs = timeToMinutes(rec.breakStart), be = timeToMinutes(rec.breakEnd);
-        let breakMin = state.settings.defaultBreak;
-        if(bs!=null && be!=null && be>bs) breakMin = be-bs;
-        const deltaVsDefault = state.settings.defaultBreak - breakMin; // shorter break = more worked... simplistic proxy
-        cumDeltaMin += deltaVsDefault;
-        cell.classList.add(deltaVsDefault>=0 ? "worked-pos":"worked-neg");
+        const delta = dayDeltaMinutes(rec);
+        cumDeltaMin += delta;
+        cell.classList.add(delta>=0 ? "worked-pos":"worked-neg");
         const dot = document.createElement("div"); dot.className="dot";
-        dot.style.background = deltaVsDefault>=0 ? "var(--green)" : "var(--red)";
+        dot.style.background = delta>=0 ? "var(--green)" : "var(--red)";
         cell.appendChild(dot);
       }
       cell.addEventListener("click", ()=>openDaySheet(iso));
@@ -646,11 +664,8 @@ nav.tabbar button.active svg{stroke:var(--accent);}
     const now = new Date();
     Object.keys(state.days).forEach(iso=>{
       const rec = state.days[iso];
-      if(rec && rec.arrival && !rec.type){
-        const bs = timeToMinutes(rec.breakStart), be = timeToMinutes(rec.breakEnd);
-        let breakMin = state.settings.defaultBreak;
-        if(bs!=null && be!=null && be>bs) breakMin = be-bs;
-        const delta = state.settings.defaultBreak - breakMin;
+      const delta = dayDeltaMinutes(rec);
+      if(delta!=null){
         total += delta;
         const [y,m] = iso.split("-").map(Number);
         if(y===now.getFullYear() && (m-1)===now.getMonth()) monthTotal += delta;
