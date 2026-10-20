@@ -2,8 +2,11 @@ services:
   - type: web
     name: pointo
     runtime: static
-    buildCommand: ""
+    # le déploiement échoue (et l'ancienne version reste en ligne) si les tests de calcul cassent
+    buildCommand: npm test
     staticPublishPath: .
+    # attend que les tests GitHub (calculs + navigateur) soient verts avant de déployer
+    autoDeployTrigger: checksPass
     pullRequestPreviewsEnabled: false
     headers:
       - path: /sw.js
