@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   parseHM, migrate, defaultState, dayDelta, balance, setBalanceTo, writeDay,
-  weekdaysBetween, earliestDeparture, monthStats, timeToMinutes, minutesToHM, LS_KEY
+  weekdaysBetween, earliestDeparture, monthStats, timeToMinutes, minutesToHM, LS_KEY, resnapshotFrom
 } from "./calc.js";
 
 const mkDay = (o) => Object.assign({arrival:"", breakStart:"", breakEnd:"", departure:"", absence:null, dailyMinutes:432, defaultBreak:40}, o);
@@ -76,7 +76,7 @@ test("migrate : ancienne donnée v3", () => {
   assert.equal(s.days["2026-09-01"].absence, null);
   assert.equal("type" in s.days["2026-09-01"], false);
   assert.equal(s.days["2026-09-03"].departure, "");
-  assert.equal(s.days["2026-10-02"].arrival, "08:00", "un brouillon n'écrase pas une journée saisie");
+  assert.equal(s.days["2026-10-02"].arrival, "09:59", "le brouillon, plus récent, remplace la journée enregistrée");
 
   // brouillon d'un jour passé non enregistré : il devient une journée
   const raw2 = oldV3();
@@ -174,4 +174,25 @@ test("monthStats : cas simple", () => {
   assert.equal(st.absences, 1 + 0.5 + 0.25);
   assert.equal(st.delta, 60 + 0 + 0 - 120);
   assert.equal(balance(s, new Date(2026, 9, 20)).month, st.delta);
+});
+
+test("resnapshotFrom : nouveaux réglages pour aujourd'hui et le futur, pas le passé", () => {
+  const s = defaultState();
+  writeDay(s, "2026-10-19", {arrival:"08:30"});
+  writeDay(s, "2026-10-20", {arrival:"08:30"});
+  writeDay(s, "2027-01-15", {absence:{type:"recup", part:"am"}});
+  s.settings.dailyMinutes = 420;
+  resnapshotFrom(s, "2026-10-20");
+  assert.equal(s.days["2026-10-19"].dailyMinutes, 432);
+  assert.equal(s.days["2026-10-20"].dailyMinutes, 420);
+  assert.equal(s.days["2027-01-15"].dailyMinutes, 420);
+  assert.equal(earliestDeparture(s.days["2026-10-20"]), timeToMinutes("08:30") + 420 + 40);
+});
+
+test("journée sans pause : 12:00-12:00 compte 0 de pause", () => {
+  assert.equal(dayDelta(mkDay({arrival:"08:00", breakStart:"12:00", breakEnd:"12:00", departure:"15:12"}), S), 0);
+});
+
+test("migrate : days corrompu (tableau) ignoré", () => {
+  assert.deepEqual(migrate(JSON.stringify({settings:{}, days:[1, 2]})).days, {});
 });

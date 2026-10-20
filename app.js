@@ -1,8 +1,8 @@
 import {
   LS_KEY, pad, todayISO, timeToMinutes, minutesToTime, minutesToHM, parseHM,
   defaultState, migrate, allTypes, findType, breakMinutes, earliestDeparture, dayDelta,
-  balance, setBalanceTo, writeDay, weekdaysBetween, monthStats
-} from "./calc.js";
+  balance, setBalanceTo, writeDay, weekdaysBetween, monthStats, resnapshotFrom
+} from "./calc.js?v=6"; // ?v= : voir sw.js
 
 const $ = (id) => document.getElementById(id);
 const TIME_IDS = { arrival: "arrivalTime", breakStart: "breakStart", breakEnd: "breakEnd", departure: "departureTime" };
@@ -66,7 +66,7 @@ function loadToday(){
   formDay = todayISO();
   const day = state.days[formDay];
   fillInputs(TIME_IDS, day);
-  if(!day) $("arrivalTime").value = state.settings.defaultArrival || "";
+  if(!(day && day.arrival) && !(day && day.absence && day.absence.part === "day")) $("arrivalTime").value = state.settings.defaultArrival || "";
 }
 
 function saveToday(){
@@ -267,6 +267,7 @@ function afterSheetWrite(){
 
 $("partSeg").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { sheet.part = b.dataset.part; renderSheet(); }));
 $("sheetBackdrop").addEventListener("click", closeSheet);
+document.addEventListener("keydown", e => { if(e.key === "Escape" && sheet) closeSheet(); });
 
 $("sheetSave").addEventListener("click", () => {
   if(sheet.range && !sheet.type) return alert("Choisis un type d'absence.");
@@ -330,7 +331,7 @@ SETTING_READERS.dailyDurM = SETTING_READERS.dailyDurH;
 Object.keys(SETTING_READERS).forEach(id => {
   $(id).addEventListener("change", () => {
     const patch = SETTING_READERS[id]();
-    if(patch){ Object.assign(state.settings, patch); save(); }
+    if(patch){ Object.assign(state.settings, patch); resnapshotFrom(state, todayISO()); save(); }
     renderSettings(); renderAll(); // valeur invalide : on réaffiche l'ancienne
   });
 });
@@ -348,6 +349,8 @@ function refresh(){
 }
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") refresh(); });
 setInterval(refresh, 30000);
+// autre onglet : on reprend ses données au lieu de les écraser à la prochaine saisie
+window.addEventListener("storage", e => { if(e.key === LS_KEY){ state = migrate(e.newValue); loadToday(); renderAll(); } });
 
 // ---------- Init ----------
 applyTheme();
