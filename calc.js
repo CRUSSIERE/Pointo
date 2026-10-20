@@ -104,6 +104,23 @@ export function earliestDeparture(day){
   return arrival + (day.dailyMinutes - absenceMinutes(day)) + breakMinutes(day).minutes;
 }
 
+// Un départ avant l'arrivée = départ après minuit (poste de nuit), si la journée reste plausible.
+export const MAX_SHIFT = 16*60; // shortcut: au-delà de 16 h on suppose une faute de frappe ; à revoir pour des gardes plus longues
+export function shiftMinutes(arrival, departure){
+  if(arrival==null || departure==null || departure===arrival) return null;
+  const span = departure > arrival ? departure - arrival : departure + 1440 - arrival;
+  return departure > arrival || span <= MAX_SHIFT ? span : null;
+}
+
+// Jour en cours de saisie : après minuit, on reste sur la veille tant que son poste n'est pas terminé.
+export function workDayISO(state, now = new Date()){
+  const y = new Date(now.getFullYear(), now.getMonth(), now.getDate()-1);
+  const d = state.days[todayISO(y)];
+  const arrival = d ? timeToMinutes(d.arrival) : null;
+  const mins = now.getHours()*60 + now.getMinutes();
+  return arrival!=null && !d.departure && mins + 1440 - arrival <= MAX_SHIFT ? todayISO(y) : todayISO(now);
+}
+
 export function dayDelta(day, state){
   const arrival = timeToMinutes(day.arrival), departure = timeToMinutes(day.departure);
   if(arrival==null && !day.absence) return null;
@@ -115,7 +132,7 @@ export function dayDelta(day, state){
   let worked;
   // absence sur la journée entière : les heures éventuellement saisies sont ignorées, comme dans l'ancienne version
   if(day.absence && day.absence.part==="day") worked = 0;
-  else if(arrival!=null && departure!=null && departure>arrival) worked = departure - arrival - br.minutes;
+  else if(shiftMinutes(arrival, departure)!=null) worked = shiftMinutes(arrival, departure) - br.minutes;
   // approximation historique : départ supposé à l'heure de départ au plus tôt
   else worked = (target - abs) + (br.explicit ? day.defaultBreak - br.minutes : 0);
   return worked + credit - target;

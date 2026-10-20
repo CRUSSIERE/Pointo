@@ -1,7 +1,7 @@
 import {
   LS_KEY, pad, todayISO, timeToMinutes, minutesToTime, minutesToHM, parseHM,
   defaultState, migrate, allTypes, findType, breakMinutes, earliestDeparture, dayDelta,
-  balance, setBalanceTo, writeDay, weekdaysBetween, monthStats, resnapshotFrom
+  balance, setBalanceTo, writeDay, weekdaysBetween, monthStats, resnapshotFrom, workDayISO
 } from "./calc.js?v=6"; // ?v= : voir sw.js
 
 const $ = (id) => document.getElementById(id);
@@ -63,7 +63,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 let formDay = null; // jour affiché dans le formulaire (change à minuit / au retour dans l'app)
 
 function loadToday(){
-  formDay = todayISO();
+  formDay = workDayISO(state);
   const day = state.days[formDay];
   fillInputs(TIME_IDS, day);
   if(!(day && day.arrival) && !(day && day.absence && day.absence.part === "day")) $("arrivalTime").value = state.settings.defaultArrival || "";
@@ -101,7 +101,7 @@ function renderToday(){
   }
   $("departTime").textContent = minutesToTime(dep);
   const now = new Date();
-  const diff = dep - (now.getHours()*60 + now.getMinutes());
+  const diff = dep - (now.getHours()*60 + now.getMinutes() + (formDay !== todayISO(now) ? 1440 : 0)); // poste de la veille
   deltaEl.textContent = diff > 0 ? `Dans ${minutesToHM(diff)}` : `Dépassé de ${minutesToHM(-diff)}`;
   deltaEl.className = diff > 0 ? "delta neutral" : "delta pos";
 }
@@ -344,7 +344,7 @@ $("resetBtn").addEventListener("click", () => {
 
 // ---------- Rafraîchissement ----------
 function refresh(){
-  if(todayISO() !== formDay && !sheet) loadToday(); // nouveau jour : le formulaire passe au jour courant
+  if(workDayISO(state) !== formDay && !sheet) loadToday(); // nouveau jour : le formulaire passe au jour courant
   renderAll();
 }
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") refresh(); });

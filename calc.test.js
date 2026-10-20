@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   parseHM, migrate, defaultState, dayDelta, balance, setBalanceTo, writeDay,
-  weekdaysBetween, earliestDeparture, monthStats, timeToMinutes, minutesToHM, LS_KEY, resnapshotFrom
+  weekdaysBetween, earliestDeparture, monthStats, timeToMinutes, minutesToHM, LS_KEY, resnapshotFrom, workDayISO
 } from "./calc.js";
 
 const mkDay = (o) => Object.assign({arrival:"", breakStart:"", breakEnd:"", departure:"", absence:null, dailyMinutes:432, defaultBreak:40}, o);
@@ -195,4 +195,26 @@ test("journée sans pause : 12:00-12:00 compte 0 de pause", () => {
 
 test("migrate : days corrompu (tableau) ignoré", () => {
   assert.deepEqual(migrate(JSON.stringify({settings:{}, days:[1, 2]})).days, {});
+});
+
+test("poste de nuit : départ après minuit compté sur la journée de l'arrivée", () => {
+  // 22:00 -> 06:12 avec 40 min de pause = 7h32 travaillées
+  assert.equal(dayDelta(mkDay({arrival:"22:00", departure:"06:12"}), S), 20);
+  assert.equal(dayDelta(mkDay({arrival:"16:00", departure:"00:00"}), S), 480 - 40 - 432);
+  // départ juste avant l'arrivée = faute de frappe, pas 23h30 de travail : approximation
+  assert.equal(dayDelta(mkDay({arrival:"08:30", departure:"08:00"}), S), 0);
+});
+
+test("workDayISO : reste sur la veille tant que le poste de nuit n'est pas fini", () => {
+  const s = defaultState();
+  const at = (h, m) => new Date(2026, 9, 21, h, m);
+  assert.equal(workDayISO(s, at(2, 0)), "2026-10-21");
+  writeDay(s, "2026-10-20", {arrival:"22:00"});
+  assert.equal(workDayISO(s, at(2, 0)), "2026-10-20");
+  assert.equal(workDayISO(s, at(14, 30)), "2026-10-21", "plus de 16 h après l'arrivée : nouveau jour");
+  writeDay(s, "2026-10-20", {departure:"06:00"});
+  assert.equal(workDayISO(s, at(7, 0)), "2026-10-21");
+  // journée de bureau normale oubliée sans départ : le lendemain matin on passe bien au nouveau jour
+  writeDay(s, "2026-10-19", {arrival:"08:30"});
+  assert.equal(workDayISO(s, new Date(2026, 9, 20, 8, 0)), "2026-10-20");
 });

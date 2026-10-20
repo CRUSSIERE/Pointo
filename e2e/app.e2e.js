@@ -173,3 +173,21 @@ describe("Hors-ligne", () => {
     await ctx.close();
   });
 });
+
+describe("Poste de nuit", () => {
+  it("garde la journée de la veille après minuit et y enregistre le départ", async () => {
+    const page = await browser.newPage();
+    await page.clock.install({ time: new Date(2026, 9, 22, 22, 0) });
+    await page.goto(BASE);
+    await page.click('.btn-now[data-target="arrivalTime"]');
+    await page.clock.setSystemTime(new Date(2026, 9, 23, 2, 0));
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    assert.equal(await page.inputValue("#arrivalTime"), "22:00", "toujours sur la journée du 22");
+    assert.equal(await page.locator("#departDelta").innerText(), "Dans 3h52"); // départ au plus tôt 05:52
+    await page.click('.btn-now[data-target="departureTime"]');
+    const s = await page.evaluate(() => JSON.parse(localStorage.getItem("pointo.v3")));
+    assert.equal(s.days["2026-10-22"].departure, "02:00");
+    assert.ok(!s.days["2026-10-23"], "rien d'enregistré sur le 23");
+    await page.close();
+  });
+});
