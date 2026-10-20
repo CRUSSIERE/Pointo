@@ -55,7 +55,7 @@ export function migrate(raw){
     schema:4,
     settings: Object.assign(def.settings, parsed.settings),
     customTypes: Array.isArray(parsed.customTypes) ? parsed.customTypes : [],
-    days: parsed.days && typeof parsed.days === "object" ? parsed.days : {}
+    days: parsed.days && typeof parsed.days === "object" && !Array.isArray(parsed.days) ? parsed.days : {}
   });
 
   for(const iso of Object.keys(state.days)){
@@ -69,8 +69,8 @@ export function migrate(raw){
     day.defaultBreak ??= state.settings.defaultBreak;
   }
 
-  // l'ancien brouillon non enregistré devient une vraie journée (sans écraser une journée saisie)
-  if(draft && draft.date && draft.arrival && !(state.days[draft.date] && state.days[draft.date].arrival)){
+  // l'ancien brouillon est toujours plus récent que la journée enregistrée (l'enregistrement le vidait)
+  if(draft && draft.date && draft.arrival){
     const patch = {};
     for(const k of TIME_FIELDS) patch[k] = draft[k] || "";
     writeDay(state, draft.date, patch);
@@ -83,7 +83,7 @@ export const findType = (state, id) => allTypes(state).find(t => t.id === id);
 
 export function breakMinutes(day){
   const bs = timeToMinutes(day.breakStart), be = timeToMinutes(day.breakEnd);
-  if(bs!=null && be!=null && be>bs) return {minutes: be-bs, explicit:true};
+  if(bs!=null && be!=null && be>=bs) return {minutes: be-bs, explicit:true}; // 12:00-12:00 = journée sans pause
   const part = day.absence && day.absence.part;
   if(part==="day" || part==="am" || part==="pm") return {minutes:0, explicit:false};
   return {minutes: day.defaultBreak, explicit:false};
@@ -142,6 +142,13 @@ export function writeDay(state, iso, patch){
   day.dailyMinutes ??= state.settings.dailyMinutes;
   day.defaultBreak ??= state.settings.defaultBreak;
   return Object.assign(day, patch);
+}
+
+// Nouveaux réglages : ils s'appliquent à aujourd'hui et aux jours futurs, jamais au passé.
+export function resnapshotFrom(state, fromIso){
+  for(const [iso, day] of Object.entries(state.days)){
+    if(iso >= fromIso) Object.assign(day, {dailyMinutes: state.settings.dailyMinutes, defaultBreak: state.settings.defaultBreak});
+  }
 }
 
 const parseISO = (iso) => { const [y,m,d] = iso.split("-").map(Number); return new Date(y, m-1, d); };

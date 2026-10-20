@@ -134,9 +134,15 @@ describe("Pointo", () => {
     await page.dispatchEvent("#defaultBreak", "change");
     await page.fill("#dailyDurM", "0");
     await page.dispatchEvent("#dailyDurM", "change");
-    assert.equal((await store()).settings.dailyMinutes, 420);
+    const st = await store();
+    assert.equal(st.settings.dailyMinutes, 420);
+    assert.equal(st.days["2026-10-01"].dailyMinutes, 432, "jour passé figé");
+    assert.equal(st.days["2026-10-20"].dailyMinutes, 420, "aujourd'hui suit les nouveaux réglages");
+    await tab("jour");
+    assert.equal(await txt("#departTime"), "12:20"); // 08:30 + 3h30 (demi-journée de 7h00) + 20 min de pause
+    // seul aujourd'hui bouge : écart = pause par défaut (45) - pause prise (20) au lieu de 40 - 20
     await tab("supp");
-    assert.equal(await txt("#balanceValue"), "+5h00");
+    assert.equal(await txt("#balanceValue"), "+5h05");
   });
 
   it("passe au jour suivant au retour dans l'app, sans garder la pause de la veille", async () => {

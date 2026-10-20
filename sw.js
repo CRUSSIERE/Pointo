@@ -1,13 +1,16 @@
-const CACHE = "pointo-v5";
+const CACHE = "pointo-v6";
+// ?v=6 sur les scripts/styles : l'ancien service worker (v5) les servait depuis son cache,
+// ce qui aurait mélangé le nouveau HTML avec l'ancien JS au premier chargement de cette version.
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./app.js",
-  "./calc.js",
+  "./styles.css?v=6",
+  "./app.js?v=6",
+  "./calc.js?v=6",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
+  "./icons/icon-512-maskable.png",
   "./icons/apple-touch-icon.png"
 ];
 
@@ -23,19 +26,14 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-function store(req, res){
-  if(res.ok){ const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
-  return res;
-}
-
+// Réseau d'abord pour tout : HTML et JS viennent toujours de la même version ; le cache ne sert qu'hors-ligne.
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if(req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
-  if(req.mode === "navigate"){
-    // réseau d'abord : une nouvelle version est servie dès qu'on est en ligne
-    e.respondWith(fetch(req).then((res) => store(req, res))
-      .catch(() => caches.match(req).then((r) => r || caches.match("./index.html"))));
-    return;
-  }
-  e.respondWith(caches.match(req).then((cached) => cached || fetch(req).then((res) => store(req, res))));
+  e.respondWith(
+    fetch(req).then((res) => {
+      if(res.ok){ const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+      return res;
+    }).catch(() => caches.match(req).then((r) => r || (req.mode === "navigate" ? caches.match("./index.html") : Response.error())))
+  );
 });
