@@ -13,3 +13,11 @@ npx serve .
 ## Déploiement sur Render
 
 Ce dépôt contient un fichier `render.yaml` qui déploie le site en tant que site statique Render. Sur [render.com](https://render.com), crée un nouveau "Blueprint" à partir de ce dépôt et Render détectera automatiquement la configuration.
+
+## Tests
+
+La logique (calculs d'heures supp, absences, migration des données) est dans `calc.js` et testée avec Node 20+ :
+
+```bash
+npm test
+```
