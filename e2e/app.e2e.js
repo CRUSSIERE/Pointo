@@ -118,6 +118,20 @@ describe("Pointo", () => {
     assert.ok(await dayCell(7).evaluate(e => e.classList.contains("abs-am")));
   });
 
+  it("ferme la feuille d'un jour en la glissant vers le bas", async () => {
+    await dayCell(8).click();
+    const fire = (type, y) => page.evaluate(([type, y]) => {
+      const el = document.getElementById("sheetTitle");
+      el.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true,
+        touches: type === "touchend" ? [] : [new Touch({ identifier: 1, target: el, clientY: y })] }));
+    }, [type, y]);
+    const swipe = async (dy, ms) => { await fire("touchstart", 300); await sleep(ms); await fire("touchmove", 300 + dy); await fire("touchend", 300 + dy); };
+    await swipe(40, 300);
+    assert.ok(await page.locator("#daySheet").evaluate(e => e.classList.contains("show")), "petit glissement lent : reste ouverte");
+    await swipe(200, 300);
+    assert.ok(!(await page.locator("#daySheet").evaluate(e => e.classList.contains("show"))), "grand glissement : fermée");
+  });
+
   it("fixe le solde actuel et ne réécrit pas l'historique quand on change les réglages", async () => {
     // 60 + 108 (1er oct.) - 150 (récup) + 20 (aujourd'hui, pause de 20 min) = +0h38
     await tab("supp");
