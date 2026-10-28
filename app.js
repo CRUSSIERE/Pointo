@@ -224,6 +224,7 @@ function openSheet(opts){
   if(opts.withTimes) fillInputs(SHEET_IDS, first);
   $("absHours").value = a && a.part === "hours" ? minutesToHM(a.minutes || 0) : "";
   renderSheet();
+  $("daySheet").scrollTop = 0; // sinon elle rouvre défilée là où on l'avait laissée
   $("sheetBackdrop").classList.add("show");
   $("daySheet").classList.add("show");
 }
@@ -264,6 +265,31 @@ function closeSheet(){
 function afterSheetWrite(){
   save(); closeSheet(); loadToday(); renderAll();
 }
+
+// Glisser la feuille vers le bas pour la fermer (geste iOS)
+const daySheet = $("daySheet");
+let drag = null;
+daySheet.addEventListener("touchstart", e => {
+  if(daySheet.scrollTop > 0 || e.target.closest("input")) return;
+  drag = {y: e.touches[0].clientY, t: e.timeStamp, dy: 0};
+}, {passive: true});
+daySheet.addEventListener("touchmove", e => {
+  if(!drag) return;
+  if(daySheet.scrollTop > 0){ drag = null; return; } // le contenu défile : pas de glissement
+  drag.dy = Math.max(0, e.touches[0].clientY - drag.y);
+  if(!drag.dy) return;
+  e.preventDefault();
+  daySheet.style.transition = "none";
+  daySheet.style.transform = `translateY(${drag.dy}px)`;
+}, {passive: false});
+const endDrag = e => {
+  if(!drag) return;
+  const {dy, t} = drag; drag = null;
+  daySheet.style.transition = daySheet.style.transform = "";
+  if(dy > 120 || dy / (e.timeStamp - t) > 0.6) closeSheet(); // assez loin ou lancé assez vite
+};
+daySheet.addEventListener("touchend", endDrag);
+daySheet.addEventListener("touchcancel", () => { drag = null; daySheet.style.transition = daySheet.style.transform = ""; });
 
 $("partSeg").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { sheet.part = b.dataset.part; renderSheet(); }));
 $("sheetBackdrop").addEventListener("click", closeSheet);
